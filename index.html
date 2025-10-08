@@ -23,7 +23,6 @@
 <body>
   <header>💖 Nosso Álbum 💖</header>
 
-  <!-- CONTADOR: anos, meses, dias + hh:mm:ss + total dias -->
   <div class="contador">
     <div>Estamos juntos há:</div>
     <div style="font-weight:700;font-size:1.1rem" id="tempo">-- anos, -- meses e -- dias</div>
@@ -31,13 +30,11 @@
     <div id="totalDias" style="color:#777;margin-top:6px">(-- dias no total)</div>
   </div>
 
-  <!-- TELA DE DESTAQUES -->
   <div id="telaAlbuns">
     <div class="album-list" id="listaAlbuns"></div>
     <button id="novoAlbum">+ Novo Destaque</button>
   </div>
 
-  <!-- TELA DE GALERIA -->
   <div id="telaGaleria" style="display:none">
     <h2 id="tituloAlbum"></h2>
     <div style="display:flex;gap:8px;justify-content:center;margin-bottom:10px">
@@ -51,7 +48,9 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
     import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-storage.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayRemove, arrayUnion } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
+    // --- Firebase ---
     const firebaseConfig = {
       apiKey: "AIzaSyA1NZxjAi3VENLkpbrg8CZHqSIlkhY3zv8",
       authDomain: "nosso-album-beb75.firebaseapp.com",
@@ -63,6 +62,7 @@
 
     const app = initializeApp(firebaseConfig);
     const storage = getStorage(app);
+    const db = getFirestore(app);
 
     const START_DATE = new Date(2022, 9, 8);
 
@@ -77,27 +77,22 @@
         dias += ultimoMes.getDate();
         meses--;
       }
+      if (meses < 0) { meses += 12; anos--; }
 
-      if (meses < 0) {
-        meses += 12;
-        anos--;
-      }
-
-      const totalDias = Math.floor((agora - START_DATE) / (1000 * 60 * 60 * 24));
+      const totalDias = Math.floor((agora - START_DATE) / (1000*60*60*24));
 
       document.getElementById("tempo").textContent = 
-        `${anos} ${anos === 1 ? "ano" : "anos"}, ${meses} ${meses === 1 ? "mês" : "meses"} e ${dias} ${dias === 1 ? "dia" : "dias"}`;
-      
-      const horas = String(agora.getHours()).padStart(2, '0');
-      const minutos = String(agora.getMinutes()).padStart(2, '0');
-      const segundos = String(agora.getSeconds()).padStart(2, '0');
-      document.getElementById("hms").textContent = `${horas}:${minutos}:${segundos}`;
+        `${anos} ${anos===1?"ano":"anos"}, ${meses} ${meses===1?"mês":"meses"} e ${dias} ${dias===1?"dia":"dias"}`;
+      const h = String(agora.getHours()).padStart(2,'0');
+      const m = String(agora.getMinutes()).padStart(2,'0');
+      const s = String(agora.getSeconds()).padStart(2,'0');
+      document.getElementById("hms").textContent = `${h}:${m}:${s}`;
       document.getElementById("totalDias").textContent = `${totalDias} dias no total`;
     }
 
     setInterval(calcularTempoJuntos, 1000);
 
-    // --- ALBUNS / LOCALSTORAGE ---
+    // --- Albuns ---
     const listaAlbuns = document.getElementById('listaAlbuns');
     const telaAlbuns = document.getElementById('telaAlbuns');
     const telaGaleria = document.getElementById('telaGaleria');
@@ -106,105 +101,127 @@
     const fileInput = document.getElementById('fileInput');
     let albumAtual = null;
 
-    function salvarAlbuns(albuns) { localStorage.setItem('albuns', JSON.stringify(albuns)); }
-    function carregarAlbuns() { return JSON.parse(localStorage.getItem('albuns') || '{}'); }
+    async function carregarAlbuns() {
+      const docRef = doc(db, "albuns", "destaques");
+      const docSnap = await getDoc(docRef);
+      return docSnap.exists() ? docSnap.data() : {};
+    }
 
-    function mostrarAlbuns() {
-      const albuns = carregarAlbuns();
+    async function salvarAlbuns(albuns) {
+      const docRef = doc(db, "albuns", "destaques");
+      await setDoc(docRef, albuns);
+    }
+
+    async function mostrarAlbuns() {
+      const albuns = await carregarAlbuns();
       listaAlbuns.innerHTML = '';
       const nomes = Object.keys(albuns);
-      if (nomes.length === 0) {
-        const vazio = document.createElement('div'); vazio.textContent = 'Nenhum destaque — crie um!'; vazio.style.color = '#777'; vazio.style.padding = '8px'; listaAlbuns.appendChild(vazio);
+      if(nomes.length===0){
+        const vazio = document.createElement('div');
+        vazio.textContent = 'Nenhum destaque — crie um!';
+        vazio.style.color='#777';
+        vazio.style.padding='8px';
+        listaAlbuns.appendChild(vazio);
       }
-
-      nomes.forEach(nome => {
-        const div = document.createElement('div'); div.className = 'album';
-
-        const btnExcluir = document.createElement('button'); btnExcluir.className = 'delete-btn'; btnExcluir.textContent = '×';
-        btnExcluir.onclick = (e) => {
+      nomes.forEach(nome=>{
+        const div = document.createElement('div');
+        div.className='album';
+        const btnExcluir = document.createElement('button');
+        btnExcluir.className='delete-btn';
+        btnExcluir.textContent='×';
+        btnExcluir.onclick = async e=>{
           e.stopPropagation();
-          if (!confirm(`Excluir o destaque "${nome}"?`)) return;
-          const atual = carregarAlbuns();
-          delete atual[nome];
-          salvarAlbuns(atual);
+          if(!confirm(`Excluir o destaque "${nome}"?`)) return;
+          const albuns = await carregarAlbuns();
+          // opcional: deletar arquivos do Firebase
+          if(albuns[nome]) {
+            albuns[nome].forEach(m=>{
+              if(m.src.startsWith('https://')){
+                const fileRef = ref(storage, m.src);
+                deleteObject(fileRef).catch(()=>{});
+              }
+            });
+          }
+          delete albuns[nome];
+          await salvarAlbuns(albuns);
           mostrarAlbuns();
         };
-
-        const nomeDiv = document.createElement('div'); nomeDiv.textContent = nome;
+        const nomeDiv = document.createElement('div');
+        nomeDiv.textContent=nome;
         div.appendChild(btnExcluir);
         div.appendChild(nomeDiv);
-        div.onclick = () => abrirAlbum(nome);
+        div.onclick = ()=>abrirAlbum(nome);
         listaAlbuns.appendChild(div);
       });
     }
 
-    document.getElementById('novoAlbum').onclick = () => {
+    document.getElementById('novoAlbum').onclick = async ()=>{
       const nome = prompt('Nome do novo destaque:');
-      if (!nome) return;
-      const albuns = carregarAlbuns();
-      if (albuns[nome]) { alert('Já existe um destaque com esse nome.'); return; }
-      albuns[nome] = [];
-      salvarAlbuns(albuns);
+      if(!nome) return;
+      const albuns = await carregarAlbuns();
+      if(albuns[nome]) { alert('Já existe um destaque com esse nome.'); return; }
+      albuns[nome]=[];
+      await salvarAlbuns(albuns);
       mostrarAlbuns();
     };
 
-    function abrirAlbum(nome) {
-      albumAtual = nome;
-      tituloAlbum.textContent = nome;
-      telaAlbuns.style.display = 'none';
-      telaGaleria.style.display = 'block';
+    async function abrirAlbum(nome){
+      albumAtual=nome;
+      tituloAlbum.textContent=nome;
+      telaAlbuns.style.display='none';
+      telaGaleria.style.display='block';
       mostrarGaleria();
     }
 
-    function mostrarGaleria() {
-      const albuns = carregarAlbuns();
-      const midias = albuns[albumAtual] || [];
-      galeria.innerHTML = '';
-      if (midias.length === 0) { galeria.innerHTML = '<div class="empty">Nenhuma mídia adicionada</div>'; return; }
-
-      midias.forEach((m, i) => {
-        const el = document.createElement(m.tipo === 'video' ? 'video' : 'img');
+    async function mostrarGaleria(){
+      const albuns = await carregarAlbuns();
+      const midias = albuns[albumAtual]||[];
+      galeria.innerHTML='';
+      if(midias.length===0){ galeria.innerHTML='<div class="empty">Nenhuma mídia adicionada</div>'; return; }
+      midias.forEach((m,i)=>{
+        const el = document.createElement(m.tipo==='video'?'video':'img');
         el.src = m.src;
-        if (m.tipo === 'video') el.controls = true;
-        el.onclick = () => {
-          if (!confirm('Remover esta mídia?')) return;
-          // Remove do Firebase também
-          if (m.src.startsWith('https://')) {
-            const fileRef = ref(storage, m.src);
-            deleteObject(fileRef).catch(err => console.warn('Não foi possível excluir do Firebase:', err));
+        if(m.tipo==='video') el.controls=true;
+        el.onclick = async ()=>{
+          if(!confirm('Remover esta mídia?')) return;
+          // remover do Firebase
+          if(m.src.startsWith('https://')){
+            const path = decodeURIComponent(m.src.split('/o/')[1].split('?')[0]);
+            const fileRef = ref(storage, path);
+            deleteObject(fileRef).catch(()=>{});
           }
-          const albunsAtual = carregarAlbuns();
-          albunsAtual[albumAtual].splice(i, 1);
-          salvarAlbuns(albunsAtual);
+          const albuns = await carregarAlbuns();
+          albuns[albumAtual].splice(i,1);
+          await salvarAlbuns(albuns);
           mostrarGaleria();
         };
         galeria.appendChild(el);
       });
     }
 
-    document.getElementById('voltar').onclick = () => { telaAlbuns.style.display = 'block'; telaGaleria.style.display = 'none'; mostrarAlbuns(); };
-    document.getElementById('addFoto').onclick = () => fileInput.click();
+    document.getElementById('voltar').onclick=()=>{
+      telaAlbuns.style.display='block';
+      telaGaleria.style.display='none';
+      mostrarAlbuns();
+    };
+    document.getElementById('addFoto').onclick=()=>fileInput.click();
 
-    fileInput.onchange = (e) => {
-      const files = Array.from(e.target.files);
-      if (!files.length) return;
-      const albuns = carregarAlbuns();
-      const midias = albuns[albumAtual] || [];
-
-      files.forEach(file => {
-        const tipo = file.type.startsWith('video') ? 'video' : 'img';
+    fileInput.onchange=async e=>{
+      const files=Array.from(e.target.files);
+      if(!files.length) return;
+      const albuns=await carregarAlbuns();
+      const midias=albuns[albumAtual]||[];
+      for(const file of files){
+        const tipo = file.type.startsWith('video')?'video':'img';
         const storageRef = ref(storage, `${albumAtual}/${Date.now()}_${file.name}`);
-        uploadBytes(storageRef, file).then(snapshot => {
-          getDownloadURL(snapshot.ref).then(url => {
-            midias.push({ tipo, src: url });
-            albuns[albumAtual] = midias;
-            salvarAlbuns(albuns);
-            mostrarGaleria();
-          });
-        }).catch(err => console.error("Erro ao enviar para Firebase:", err));
-      });
-
-      fileInput.value = '';
+        const snapshot = await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(snapshot.ref);
+        midias.push({tipo,src:url});
+      }
+      albuns[albumAtual]=midias;
+      await salvarAlbuns(albuns);
+      mostrarGaleria();
+      fileInput.value='';
     };
 
     // inicializa
