@@ -49,56 +49,53 @@
   </div>
 
   <script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-storage.js";
 
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyA1NZxjAi3VENLkpbrg8CZHqSIlkhY3zv8",
-    authDomain: "nosso-album-beb75.firebaseapp.com",
-    projectId: "nosso-album-beb75",
-    storageBucket: "nosso-album-beb75.firebasestorage.app",
-    messagingSenderId: "990056960457",
-    appId: "1:990056960457:web:b8b90705bae336708c1818"
-  };
+    const firebaseConfig = {
+      apiKey: "AIzaSyA1NZxjAi3VENLkpbrg8CZHqSIlkhY3zv8",
+      authDomain: "nosso-album-beb75.firebaseapp.com",
+      projectId: "nosso-album-beb75",
+      storageBucket: "nosso-album-beb75.appspot.com",
+      messagingSenderId: "990056960457",
+      appId: "1:990056960457:web:b8b90705bae336708c1818"
+    };
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const START_DATE = new Date(2022, 9, 8); // 8 de outubro de 2022
+    const app = initializeApp(firebaseConfig);
+    const storage = getStorage(app);
 
-function calcularTempoJuntos() {
-  const agora = new Date();
-  let anos = agora.getFullYear() - START_DATE.getFullYear();
-  let meses = agora.getMonth() - START_DATE.getMonth();
-  let dias = agora.getDate() - START_DATE.getDate();
+    const START_DATE = new Date(2022, 9, 8);
 
-  if (dias < 0) {
-    const ultimoMes = new Date(agora.getFullYear(), agora.getMonth(), 0);
-    dias += ultimoMes.getDate();
-    meses--;
-  }
+    function calcularTempoJuntos() {
+      const agora = new Date();
+      let anos = agora.getFullYear() - START_DATE.getFullYear();
+      let meses = agora.getMonth() - START_DATE.getMonth();
+      let dias = agora.getDate() - START_DATE.getDate();
 
-  if (meses < 0) {
-    meses += 12;
-    anos--;
-  }
+      if (dias < 0) {
+        const ultimoMes = new Date(agora.getFullYear(), agora.getMonth(), 0);
+        dias += ultimoMes.getDate();
+        meses--;
+      }
 
-  const totalDias = Math.floor((agora - START_DATE) / (1000 * 60 * 60 * 24));
+      if (meses < 0) {
+        meses += 12;
+        anos--;
+      }
 
-  // Atualiza no HTML
-  document.getElementById("tempo").textContent = 
-    `${anos} ${anos === 1 ? "ano" : "anos"}, ${meses} ${meses === 1 ? "mês" : "meses"} e ${dias} ${dias === 1 ? "dia" : "dias"}`;
-  
-  const horas = String(agora.getHours()).padStart(2, '0');
-  const minutos = String(agora.getMinutes()).padStart(2, '0');
-  const segundos = String(agora.getSeconds()).padStart(2, '0');
-  document.getElementById("hms").textContent = `${horas}:${minutos}:${segundos}`;
-  document.getElementById("totalDias").textContent = `${totalDias} dias no total`;
-}
+      const totalDias = Math.floor((agora - START_DATE) / (1000 * 60 * 60 * 24));
 
-setInterval(calcularTempoJuntos, 1000);
+      document.getElementById("tempo").textContent = 
+        `${anos} ${anos === 1 ? "ano" : "anos"}, ${meses} ${meses === 1 ? "mês" : "meses"} e ${dias} ${dias === 1 ? "dia" : "dias"}`;
+      
+      const horas = String(agora.getHours()).padStart(2, '0');
+      const minutos = String(agora.getMinutes()).padStart(2, '0');
+      const segundos = String(agora.getSeconds()).padStart(2, '0');
+      document.getElementById("hms").textContent = `${horas}:${minutos}:${segundos}`;
+      document.getElementById("totalDias").textContent = `${totalDias} dias no total`;
+    }
+
+    setInterval(calcularTempoJuntos, 1000);
 
     // --- ALBUNS / LOCALSTORAGE ---
     const listaAlbuns = document.getElementById('listaAlbuns');
@@ -171,6 +168,11 @@ setInterval(calcularTempoJuntos, 1000);
         if (m.tipo === 'video') el.controls = true;
         el.onclick = () => {
           if (!confirm('Remover esta mídia?')) return;
+          // Remove do Firebase também
+          if (m.src.startsWith('https://')) {
+            const fileRef = ref(storage, m.src);
+            deleteObject(fileRef).catch(err => console.warn('Não foi possível excluir do Firebase:', err));
+          }
           const albunsAtual = carregarAlbuns();
           albunsAtual[albumAtual].splice(i, 1);
           salvarAlbuns(albunsAtual);
@@ -190,16 +192,18 @@ setInterval(calcularTempoJuntos, 1000);
       const midias = albuns[albumAtual] || [];
 
       files.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = ev => {
-          const tipo = file.type.startsWith('video') ? 'video' : 'img';
-          midias.push({ tipo, src: ev.target.result });
-          albuns[albumAtual] = midias;
-          salvarAlbuns(albuns);
-          mostrarGaleria();
-        };
-        reader.readAsDataURL(file);
+        const tipo = file.type.startsWith('video') ? 'video' : 'img';
+        const storageRef = ref(storage, `${albumAtual}/${Date.now()}_${file.name}`);
+        uploadBytes(storageRef, file).then(snapshot => {
+          getDownloadURL(snapshot.ref).then(url => {
+            midias.push({ tipo, src: url });
+            albuns[albumAtual] = midias;
+            salvarAlbuns(albuns);
+            mostrarGaleria();
+          });
+        }).catch(err => console.error("Erro ao enviar para Firebase:", err));
       });
+
       fileInput.value = '';
     };
 
