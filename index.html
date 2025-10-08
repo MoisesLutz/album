@@ -23,6 +23,7 @@
 <body>
   <header>💖 Nosso Álbum 💖</header>
 
+  <!-- CONTADOR: anos, meses, dias + hh:mm:ss + total dias -->
   <div class="contador">
     <div>Estamos juntos há:</div>
     <div style="font-weight:700;font-size:1.1rem" id="tempo">-- anos, -- meses e -- dias</div>
@@ -30,11 +31,13 @@
     <div id="totalDias" style="color:#777;margin-top:6px">(-- dias no total)</div>
   </div>
 
+  <!-- TELA DE DESTAQUES -->
   <div id="telaAlbuns">
     <div class="album-list" id="listaAlbuns"></div>
     <button id="novoAlbum">+ Novo Destaque</button>
   </div>
 
+  <!-- TELA DE GALERIA -->
   <div id="telaGaleria" style="display:none">
     <h2 id="tituloAlbum"></h2>
     <div style="display:flex;gap:8px;justify-content:center;margin-bottom:10px">
@@ -45,169 +48,146 @@
     <div class="galeria" id="galeria"></div>
   </div>
 
-  <script type="module">
-    // =============================
-    // 🔥 CONFIGURAÇÃO DO FIREBASE
-    // =============================
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { 
-      getFirestore, doc, getDoc, setDoc, onSnapshot, deleteField, updateDoc 
-    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-    import { 
-      getStorage, ref, uploadBytes, getDownloadURL, deleteObject 
-    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+  <script>
+    const START_DATE = new Date(2022, 9, 8); // 8 de outubro de 2022
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBbrO1OmACUCw7FQu-IM_6ZmshF8ZZ5r0o",
-      authDomain: "album-destaques.firebaseapp.com",
-      projectId: "album-destaques",
-      storageBucket: "album-destaques.appspot.com",
-      messagingSenderId: "904173934936",
-      appId: "1:904173934936:web:b51bfa7f409005f39b6b0f"
-    };
+function calcularTempoJuntos() {
+  const agora = new Date();
+  let anos = agora.getFullYear() - START_DATE.getFullYear();
+  let meses = agora.getMonth() - START_DATE.getMonth();
+  let dias = agora.getDate() - START_DATE.getDate();
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const storage = getStorage(app);
-    const albunsRef = doc(db, "albuns", "destaques");
+  if (dias < 0) {
+    const ultimoMes = new Date(agora.getFullYear(), agora.getMonth(), 0);
+    dias += ultimoMes.getDate();
+    meses--;
+  }
 
-    // =============================
-    // ⏰ CONTADOR DE NAMORO
-    // =============================
-    const START_DATE = new Date(2022, 9, 8);
-    function calcularTempoJuntos() {
-      const agora = new Date();
-      let anos = agora.getFullYear() - START_DATE.getFullYear();
-      let meses = agora.getMonth() - START_DATE.getMonth();
-      let dias = agora.getDate() - START_DATE.getDate();
-      if (dias < 0) {
-        const ultimoMes = new Date(agora.getFullYear(), agora.getMonth(), 0);
-        dias += ultimoMes.getDate();
-        meses--;
-      }
-      if (meses < 0) {
-        meses += 12;
-        anos--;
-      }
-      const totalDias = Math.floor((agora - START_DATE) / (1000 * 60 * 60 * 24));
-      document.getElementById("tempo").textContent = 
-        `${anos} ${anos===1?"ano":"anos"}, ${meses} ${meses===1?"mês":"meses"} e ${dias} ${dias===1?"dia":"dias"}`;
-      const h = String(agora.getHours()).padStart(2,'0');
-      const m = String(agora.getMinutes()).padStart(2,'0');
-      const s = String(agora.getSeconds()).padStart(2,'0');
-      document.getElementById("hms").textContent = `${h}:${m}:${s}`;
-      document.getElementById("totalDias").textContent = `${totalDias} dias no total`;
-    }
-    setInterval(calcularTempoJuntos, 1000);
+  if (meses < 0) {
+    meses += 12;
+    anos--;
+  }
 
-    // =============================
-    // 💾 ÁLBUNS E GALERIA
-    // =============================
-    const listaAlbuns = document.getElementById("listaAlbuns");
-    const telaAlbuns = document.getElementById("telaAlbuns");
-    const telaGaleria = document.getElementById("telaGaleria");
-    const galeria = document.getElementById("galeria");
-    const tituloAlbum = document.getElementById("tituloAlbum");
-    const fileInput = document.getElementById("fileInput");
+  const totalDias = Math.floor((agora - START_DATE) / (1000 * 60 * 60 * 24));
+
+  // Atualiza no HTML
+  document.getElementById("tempo").textContent = 
+    `${anos} ${anos === 1 ? "ano" : "anos"}, ${meses} ${meses === 1 ? "mês" : "meses"} e ${dias} ${dias === 1 ? "dia" : "dias"}`;
+  
+  const horas = String(agora.getHours()).padStart(2, '0');
+  const minutos = String(agora.getMinutes()).padStart(2, '0');
+  const segundos = String(agora.getSeconds()).padStart(2, '0');
+  document.getElementById("hms").textContent = `${horas}:${minutos}:${segundos}`;
+  document.getElementById("totalDias").textContent = `${totalDias} dias no total`;
+}
+
+setInterval(calcularTempoJuntos, 1000);
+
+    // --- ALBUNS / LOCALSTORAGE ---
+    const listaAlbuns = document.getElementById('listaAlbuns');
+    const telaAlbuns = document.getElementById('telaAlbuns');
+    const telaGaleria = document.getElementById('telaGaleria');
+    const galeria = document.getElementById('galeria');
+    const tituloAlbum = document.getElementById('tituloAlbum');
+    const fileInput = document.getElementById('fileInput');
     let albumAtual = null;
 
-    function mostrarAlbuns(albuns) {
-      listaAlbuns.innerHTML = "";
-      const nomes = Object.keys(albuns || {});
+    function salvarAlbuns(albuns) { localStorage.setItem('albuns', JSON.stringify(albuns)); }
+    function carregarAlbuns() { return JSON.parse(localStorage.getItem('albuns') || '{}'); }
+
+    function mostrarAlbuns() {
+      const albuns = carregarAlbuns();
+      listaAlbuns.innerHTML = '';
+      const nomes = Object.keys(albuns);
       if (nomes.length === 0) {
-        listaAlbuns.innerHTML = '<div style="color:#777;padding:8px">Nenhum destaque — crie um!</div>';
-        return;
+        const vazio = document.createElement('div'); vazio.textContent = 'Nenhum destaque — crie um!'; vazio.style.color = '#777'; vazio.style.padding = '8px'; listaAlbuns.appendChild(vazio);
       }
+
       nomes.forEach(nome => {
-        const div = document.createElement("div");
-        div.className = "album";
-        const btnExcluir = document.createElement("button");
-        btnExcluir.className = "delete-btn";
-        btnExcluir.textContent = "×";
-        btnExcluir.onclick = async (e) => {
+        const div = document.createElement('div'); div.className = 'album';
+
+        const btnExcluir = document.createElement('button'); btnExcluir.className = 'delete-btn'; btnExcluir.textContent = '×';
+        btnExcluir.onclick = (e) => {
           e.stopPropagation();
           if (!confirm(`Excluir o destaque "${nome}"?`)) return;
-          await updateDoc(albunsRef, { [nome]: deleteField() });
+          const atual = carregarAlbuns();
+          delete atual[nome];
+          salvarAlbuns(atual);
+          mostrarAlbuns();
         };
-        const nomeDiv = document.createElement("div");
-        nomeDiv.textContent = nome;
+
+        const nomeDiv = document.createElement('div'); nomeDiv.textContent = nome;
         div.appendChild(btnExcluir);
         div.appendChild(nomeDiv);
-        div.onclick = () => abrirAlbum(nome, albuns[nome]);
+        div.onclick = () => abrirAlbum(nome);
         listaAlbuns.appendChild(div);
       });
     }
 
-    document.getElementById("novoAlbum").onclick = async () => {
-      const nome = prompt("Nome do novo destaque:");
+    document.getElementById('novoAlbum').onclick = () => {
+      const nome = prompt('Nome do novo destaque:');
       if (!nome) return;
-      const snap = await getDoc(albunsRef);
-      const data = snap.exists() ? snap.data() : {};
-      if (data[nome]) { alert("Já existe um destaque com esse nome!"); return; }
-      await setDoc(albunsRef, { [nome]: [] }, { merge: true });
+      const albuns = carregarAlbuns();
+      if (albuns[nome]) { alert('Já existe um destaque com esse nome.'); return; }
+      albuns[nome] = [];
+      salvarAlbuns(albuns);
+      mostrarAlbuns();
     };
 
-    function abrirAlbum(nome, midias = []) {
+    function abrirAlbum(nome) {
       albumAtual = nome;
       tituloAlbum.textContent = nome;
-      telaAlbuns.style.display = "none";
-      telaGaleria.style.display = "block";
-      mostrarGaleria(midias);
+      telaAlbuns.style.display = 'none';
+      telaGaleria.style.display = 'block';
+      mostrarGaleria();
     }
 
-    function mostrarGaleria(midias) {
-      galeria.innerHTML = "";
-      if (!midias || midias.length === 0) {
-        galeria.innerHTML = '<div class="empty">Nenhuma mídia adicionada</div>';
-        return;
-      }
+    function mostrarGaleria() {
+      const albuns = carregarAlbuns();
+      const midias = albuns[albumAtual] || [];
+      galeria.innerHTML = '';
+      if (midias.length === 0) { galeria.innerHTML = '<div class="empty">Nenhuma mídia adicionada</div>'; return; }
+
       midias.forEach((m, i) => {
-        const el = document.createElement(m.tipo === "video" ? "video" : "img");
-        el.src = m.url;
-        if (m.tipo === "video") el.controls = true;
-        el.onclick = async () => {
-          if (!confirm("Remover esta mídia?")) return;
-          await deleteObject(ref(storage, m.path));
-          const snap = await getDoc(albunsRef);
-          const data = snap.data();
-          data[albumAtual].splice(i, 1);
-          await setDoc(albunsRef, data);
+        const el = document.createElement(m.tipo === 'video' ? 'video' : 'img');
+        el.src = m.src;
+        if (m.tipo === 'video') el.controls = true;
+        el.onclick = () => {
+          if (!confirm('Remover esta mídia?')) return;
+          const albunsAtual = carregarAlbuns();
+          albunsAtual[albumAtual].splice(i, 1);
+          salvarAlbuns(albunsAtual);
+          mostrarGaleria();
         };
         galeria.appendChild(el);
       });
     }
 
-    document.getElementById("voltar").onclick = () => {
-      telaAlbuns.style.display = "block";
-      telaGaleria.style.display = "none";
-    };
+    document.getElementById('voltar').onclick = () => { telaAlbuns.style.display = 'block'; telaGaleria.style.display = 'none'; mostrarAlbuns(); };
+    document.getElementById('addFoto').onclick = () => fileInput.click();
 
-    document.getElementById("addFoto").onclick = () => fileInput.click();
-
-    fileInput.onchange = async (e) => {
+    fileInput.onchange = (e) => {
       const files = Array.from(e.target.files);
-      if (!files.length || !albumAtual) return;
-      for (const file of files) {
-        const tipo = file.type.startsWith("video") ? "video" : "img";
-        const filePath = `${albumAtual}/${Date.now()}_${file.name}`;
-        const fileRef = ref(storage, filePath);
-        await uploadBytes(fileRef, file);
-        const url = await getDownloadURL(fileRef);
-        const snap = await getDoc(albunsRef);
-        const data = snap.exists() ? snap.data() : {};
-        const midias = data[albumAtual] || [];
-        midias.push({ tipo, url, path: filePath });
-        await setDoc(albunsRef, { [albumAtual]: midias }, { merge: true });
-      }
-      fileInput.value = "";
+      if (!files.length) return;
+      const albuns = carregarAlbuns();
+      const midias = albuns[albumAtual] || [];
+
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const tipo = file.type.startsWith('video') ? 'video' : 'img';
+          midias.push({ tipo, src: ev.target.result });
+          albuns[albumAtual] = midias;
+          salvarAlbuns(albuns);
+          mostrarGaleria();
+        };
+        reader.readAsDataURL(file);
+      });
+      fileInput.value = '';
     };
 
-    // Atualização em tempo real dos álbuns
-    onSnapshot(albunsRef, (snap) => {
-      const data = snap.exists() ? snap.data() : {};
-      if (!albumAtual) mostrarAlbuns(data);
-      else if (data[albumAtual]) mostrarGaleria(data[albumAtual]);
-    });
+    // inicializa
+    mostrarAlbuns();
   </script>
 </body>
 </html>
