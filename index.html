@@ -147,17 +147,23 @@ async function initAlbunsRealtime() {
 }
 
 // --- Novo Destaque ---
-document.getElementById('novoAlbum').onclick=async ()=>{
-  const nome = prompt('Nome do novo destaque:'); 
-  if(!nome) return;
-  const docRef = doc(db,"albuns","destaques");
-  const docSnap = await getDoc(docRef);
-  const albuns = docSnap.exists()?docSnap.data():{};
-  if(albuns[nome]){ alert('Já existe um destaque com esse nome.'); return; }
-  albuns[nome]=[];
-  await setDoc(docRef,albuns);
-  atualizarListaAlbuns(albuns); // Atualiza imediatamente na tela
-};
+document.addEventListener('DOMContentLoaded', () => {
+  const btnNovoAlbum = document.getElementById('novoAlbum');
+  btnNovoAlbum.addEventListener('click', async () => {
+    const nome = prompt('Nome do novo destaque:');
+    if(!nome) return;
+    const docRef = doc(db,"albuns","destaques");
+    const docSnap = await getDoc(docRef);
+    const albuns = docSnap.exists()?docSnap.data():{};
+    if(albuns[nome]){
+      alert('Já existe um destaque com esse nome.');
+      return;
+    }
+    albuns[nome] = [];
+    await setDoc(docRef, albuns);
+    // A atualização da lista será feita pelo onSnapshot
+  });
+});
 
 // --- Galeria ---
 async function abrirAlbum(nome){
