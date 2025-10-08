@@ -50,7 +50,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebas
 import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-storage.js";
 
-// --- Firebase ---
 const firebaseConfig = {
   apiKey: "AIzaSyA1NZxjAi3VENLkpbrg8CZHqSIlkhY3zv8",
   authDomain: "nosso-album-beb75.firebaseapp.com",
@@ -63,7 +62,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
-
 const START_DATE = new Date(2022, 9, 8);
 
 // --- Contador ---
@@ -93,7 +91,6 @@ const tituloAlbum = document.getElementById('tituloAlbum');
 const fileInput = document.getElementById('fileInput');
 let albumAtual = null;
 
-// Inicializa o documento Firestore se não existir
 async function inicializarAlbuns() {
   const docRef = doc(db,"albuns","destaques");
   const docSnap = await getDoc(docRef);
@@ -102,7 +99,7 @@ async function inicializarAlbuns() {
   }
 }
 
-// Atualiza lista de destaques na tela
+// Atualiza a lista de álbuns na tela
 function atualizarListaAlbuns(dados) {
   listaAlbuns.innerHTML='';
   const nomes = Object.keys(dados);
@@ -139,7 +136,7 @@ function atualizarListaAlbuns(dados) {
   });
 }
 
-// Observa mudanças em tempo real
+// Observador em tempo real
 async function initAlbunsRealtime() {
   await inicializarAlbuns();
   const docRef = doc(db,"albuns","destaques");
@@ -149,7 +146,7 @@ async function initAlbunsRealtime() {
   });
 }
 
-// Novo destaque
+// --- Novo Destaque ---
 document.getElementById('novoAlbum').onclick=async ()=>{
   const nome = prompt('Nome do novo destaque:'); 
   if(!nome) return;
@@ -159,6 +156,7 @@ document.getElementById('novoAlbum').onclick=async ()=>{
   if(albuns[nome]){ alert('Já existe um destaque com esse nome.'); return; }
   albuns[nome]=[];
   await setDoc(docRef,albuns);
+  atualizarListaAlbuns(albuns); // Atualiza imediatamente na tela
 };
 
 // --- Galeria ---
@@ -200,7 +198,6 @@ document.getElementById('voltar').onclick=()=>{
   telaGaleria.style.display='none';
 };
 
-// Upload de fotos/vídeos
 document.getElementById('addFoto').onclick=()=>fileInput.click();
 fileInput.onchange=async e=>{
   const files=Array.from(e.target.files);
@@ -221,7 +218,7 @@ fileInput.onchange=async e=>{
   fileInput.value='';
 }
 
-// Inicializa observador em tempo real
+// Inicializa tudo
 initAlbunsRealtime();
 </script>
 </body>
