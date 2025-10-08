@@ -1,245 +1,141 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>💖 Nosso Álbum 💖</title>
-<style>
-  body {font-family: 'Poppins', sans-serif; background-color: #fff7fa; margin: 0; text-align: center; color: #333}
-  header {background-color: #ff8fb1; color: white; padding: 15px; font-size: 1.4em; font-weight: bold}
-  .contador {margin: 12px auto; display: inline-block; background: white; padding: 12px 18px; border-radius: 10px; box-shadow: 0 0 8px rgba(0,0,0,0.06)}
-  .album-list {display:flex;flex-wrap:wrap;justify-content:center;gap:12px;padding:16px}
-  .album {background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);padding:16px;width:150px;position:relative;cursor:pointer}
-  .album:hover{transform:scale(1.03)}
-  .delete-btn{position:absolute;top:6px;right:6px;background:#ff4f88;color:#fff;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer}
-  .galeria{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;padding:16px;max-width:980px;margin:auto}
-  .galeria img,.galeria video{width:100%;border-radius:10px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
-  .empty{grid-column:1/-1;border:2px dashed #ff8fb1;color:#c66;padding:20px;border-radius:10px}
-  button{background:#ff8fb1;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600}
-  button:hover{background:#ff6f99}
-  @media(max-width:480px){header{font-size:1.2em;padding:12px}.contador{padding:10px}}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>💖 Nosso Álbum 💖</title>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #fff7fa;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+
+    header {
+      background-color: #b03060;
+      color: white;
+      padding: 12px 0;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    #telaAlbuns {
+      margin-top: 40px;
+    }
+
+    button {
+      background-color: #b03060;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #8d224c;
+    }
+
+    .album {
+      margin: 15px;
+      display: inline-block;
+      background-color: #ffe4ec;
+      border-radius: 15px;
+      padding: 12px 18px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.3s;
+    }
+
+    .album:hover {
+      background-color: #ffd0de;
+    }
+  </style>
 </head>
 <body>
-<header>💖 Nosso Álbum 💖</header>
+  <header>💖 Nossos Destaques 💖</header>
 
-<div class="contador">
-  <div>Estamos juntos há:</div>
-  <div style="font-weight:700;font-size:1.1rem" id="tempo">-- anos, -- meses e -- dias</div>
-  <div id="hms" style="color:#666;margin-top:6px">--:--:--</div>
-  <div id="totalDias" style="color:#777;margin-top:6px">(-- dias no total)</div>
-</div>
-
-<div id="telaAlbuns">
-  <div class="album-list" id="listaAlbuns"></div>
-  <button id="novoAlbum">+ Novo Destaque</button>
-</div>
-
-<div id="telaGaleria" style="display:none">
-  <h2 id="tituloAlbum"></h2>
-  <div style="display:flex;gap:8px;justify-content:center;margin-bottom:10px">
-    <button id="voltar">⬅ Voltar</button>
-    <button id="addFoto">Adicionar foto/vídeo</button>
+  <div id="telaAlbuns">
+    <button id="novoAlbum">+ Novo Destaque</button>
+    <div id="listaAlbuns"></div>
   </div>
-  <input type="file" id="fileInput" accept="image/*,video/*" multiple hidden />
-  <div class="galeria" id="galeria"></div>
-</div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-storage.js";
+  <script type="module">
+    // Importando Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import {
+      getFirestore,
+      doc,
+      setDoc,
+      getDoc,
+      onSnapshot,
+    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyA1NZxjAi3VENLkpbrg8CZHqSIlkhY3zv8",
-  authDomain: "nosso-album-beb75.firebaseapp.com",
-  projectId: "nosso-album-beb75",
-  storageBucket: "nosso-album-beb75.appspot.com",
-  messagingSenderId: "990056960457",
-  appId: "1:990056960457:web:b8b90705bae336708c1818"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const storage = getStorage(app);
-const START_DATE = new Date(2022, 9, 8);
-
-// --- Contador ---
-function calcularTempoJuntos() {
-  const agora = new Date();
-  let anos = agora.getFullYear() - START_DATE.getFullYear();
-  let meses = agora.getMonth() - START_DATE.getMonth();
-  let dias = agora.getDate() - START_DATE.getDate();
-  if (dias < 0) {
-    const ultimoMes = new Date(agora.getFullYear(), agora.getMonth(), 0);
-    dias += ultimoMes.getDate();
-    meses--;
-  }
-  if (meses < 0) {
-    meses += 12;
-    anos--;
-  }
-  const totalDias = Math.floor((agora - START_DATE) / (1000 * 60 * 60 * 24));
-  document.getElementById("tempo").textContent = `${anos} ${anos === 1 ? "ano" : "anos"}, ${meses} ${meses === 1 ? "mês" : "meses"} e ${dias} ${dias === 1 ? "dia" : "dias"}`;
-  const h = String(agora.getHours()).padStart(2, '0');
-  const m = String(agora.getMinutes()).padStart(2, '0');
-  const s = String(agora.getSeconds()).padStart(2, '0');
-  document.getElementById("hms").textContent = `${h}:${m}:${s}`;
-  document.getElementById("totalDias").textContent = `${totalDias} dias no total`;
-}
-setInterval(calcularTempoJuntos, 1000);
-
-// --- Albuns ---
-const listaAlbuns = document.getElementById('listaAlbuns');
-const telaAlbuns = document.getElementById('telaAlbuns');
-const telaGaleria = document.getElementById('telaGaleria');
-const galeria = document.getElementById('galeria');
-const tituloAlbum = document.getElementById('tituloAlbum');
-const fileInput = document.getElementById('fileInput');
-let albumAtual = null;
-
-async function inicializarAlbuns() {
-  const docRef = doc(db, "albuns", "destaques");
-  const docSnap = await getDoc(docRef);
-  if (!docSnap.exists()) {
-    await setDoc(docRef, {});
-  }
-}
-
-// Atualiza a lista de álbuns na tela
-function atualizarListaAlbuns(dados) {
-  listaAlbuns.innerHTML = '';
-  const nomes = Object.keys(dados);
-  if (nomes.length === 0) {
-    const vazio = document.createElement('div');
-    vazio.textContent = 'Nenhum destaque — crie um!';
-    vazio.style.color = '#777';
-    vazio.style.padding = '8px';
-    listaAlbuns.appendChild(vazio);
-  }
-  nomes.forEach(nome => {
-    const div = document.createElement('div');
-    div.className = 'album';
-    const btnExcluir = document.createElement('button');
-    btnExcluir.className = 'delete-btn';
-    btnExcluir.textContent = '×';
-    btnExcluir.onclick = async e => {
-      e.stopPropagation();
-      if (!confirm(`Excluir o destaque "${nome}"?`)) return;
-      const albuns = await getDoc(doc(db, "albuns", "destaques")).then(d => d.data());
-      if (albuns[nome]) {
-        for (const m of albuns[nome]) {
-          if (m.src.startsWith('https://')) {
-            const path = decodeURIComponent(m.src.split('/o/')[1].split('?')[0]);
-            await deleteObject(ref(storage, path)).catch(() => {});
-          }
-        }
-      }
-      delete albuns[nome];
-      await setDoc(doc(db, "albuns", "destaques"), albuns);
+    // Config Firebase (troque pelos seus dados reais se necessário)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBbrO1OmACUCw7FQu-IM_6ZmshF8ZZ5r0o",
+      authDomain: "album-destaques.firebaseapp.com",
+      projectId: "album-destaques",
+      storageBucket: "album-destaques.appspot.com",
+      messagingSenderId: "904173934936",
+      appId: "1:904173934936:web:b51bfa7f409005f39b6b0f"
     };
-    div.appendChild(btnExcluir);
-    const nomeDiv = document.createElement('div');
-    nomeDiv.textContent = nome;
-    div.appendChild(nomeDiv);
-    div.onclick = () => abrirAlbum(nome);
-    listaAlbuns.appendChild(div);
-  });
-}
 
-// Observador em tempo real
-async function initAlbunsRealtime() {
-  await inicializarAlbuns();
-  const docRef = doc(db, "albuns", "destaques");
-  onSnapshot(docRef, docSnap => {
-    const dados = docSnap.exists() ? docSnap.data() : {};
-    atualizarListaAlbuns(dados);
-  });
-}
-
-// --- Novo Destaque ---
-document.addEventListener('DOMContentLoaded', () => {
-  const btnNovoAlbum = document.getElementById('novoAlbum');
-  btnNovoAlbum.addEventListener('click', async () => {
-    const nome = prompt('Nome do novo destaque:');
-    if (!nome) return;
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
     const docRef = doc(db, "albuns", "destaques");
-    const docSnap = await getDoc(docRef);
-    const albuns = docSnap.exists() ? docSnap.data() : {};
-    if (albuns[nome]) {
-      alert('Já existe um destaque com esse nome.');
-      return;
-    }
-    albuns[nome] = [];
-    await setDoc(docRef, albuns);
-  });
-});
 
-// --- Galeria ---
-async function abrirAlbum(nome) {
-  albumAtual = nome;
-  tituloAlbum.textContent = nome;
-  telaAlbuns.style.display = 'none';
-  telaGaleria.style.display = 'block';
-  mostrarGaleria();
-}
-
-async function mostrarGaleria() {
-  const docSnap = await getDoc(doc(db, "albuns", "destaques"));
-  const albuns = docSnap.exists() ? docSnap.data() : {};
-  const midias = albuns[albumAtual] || [];
-  galeria.innerHTML = '';
-  if (midias.length === 0) {
-    galeria.innerHTML = '<div class="empty">Nenhuma mídia adicionada</div>';
-    return;
-  }
-  midias.forEach((m, i) => {
-    const el = document.createElement(m.tipo === 'video' ? 'video' : 'img');
-    el.src = m.src;
-    if (m.tipo === 'video') el.controls = true;
-    el.onclick = async () => {
-      if (!confirm('Remover esta mídia?')) return;
-      if (m.src.startsWith('https://')) {
-        const path = decodeURIComponent(m.src.split('/o/')[1].split('?')[0]);
-        await deleteObject(ref(storage, path)).catch(() => {});
+    // Renderizar os destaques na tela
+    function atualizarListaAlbuns(albuns) {
+      const lista = document.getElementById("listaAlbuns");
+      lista.innerHTML = "";
+      const nomes = Object.keys(albuns || {});
+      if (nomes.length === 0) {
+        lista.innerHTML = "<p>Nenhum destaque ainda 💕</p>";
+        return;
       }
-      const docSnap2 = await getDoc(doc(db, "albuns", "destaques"));
-      const albuns2 = docSnap2.exists() ? docSnap2.data() : {};
-      albuns2[albumAtual].splice(i, 1);
-      await setDoc(doc(db, "albuns", "destaques"), albuns2);
-    };
-    galeria.appendChild(el);
-  });
-}
+      nomes.forEach(nome => {
+        const div = document.createElement("div");
+        div.className = "album";
+        div.textContent = nome;
+        lista.appendChild(div);
+      });
+    }
 
-document.getElementById('voltar').onclick = () => {
-  telaAlbuns.style.display = 'block';
-  telaGaleria.style.display = 'none';
-};
+    // Atualiza automaticamente quando o Firestore muda
+    onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        atualizarListaAlbuns(snap.data());
+      } else {
+        atualizarListaAlbuns({});
+      }
+    });
 
-document.getElementById('addFoto').onclick = () => fileInput.click();
+    // Criar novo destaque
+    document.addEventListener("DOMContentLoaded", () => {
+      const btnNovo = document.getElementById("novoAlbum");
+      btnNovo.addEventListener("click", async () => {
+        const nome = prompt("Nome do novo destaque:");
+        if (!nome) return;
 
-fileInput.onchange = async e => {
-  const files = Array.from(e.target.files);
-  if (!files.length) return;
-  const docRef = doc(db, "albuns", "destaques");
-  const docSnap = await getDoc(docRef);
-  const albuns = docSnap.exists() ? docSnap.data() : {};
-  const midias = albuns[albumAtual] || [];
-  for (const file of files) {
-    const tipo = file.type.startsWith('video') ? 'video' : 'img';
-    const storageRef = ref(storage, `${albumAtual}/${Date.now()}_${file.name}`);
-    const snapshot = await uploadBytes(storageRef, file);
-    const url = await getDownloadURL(snapshot.ref);
-    midias.push({ tipo, src: url });
-  }
-  albuns[albumAtual] = midias;
-  await setDoc(docRef, albuns);
-  fileInput.value = '';
-}
+        const snap = await getDoc(docRef);
+        let albuns = {};
+        if (snap.exists()) albuns = snap.data();
 
-// Inicializa tudo
-initAlbunsRealtime();
-</script>
+        if (albuns[nome]) {
+          alert("Já existe um destaque com esse nome!");
+          return;
+        }
+
+        albuns[nome] = [];
+
+        // O merge:true evita apagar os outros destaques
+        await setDoc(docRef, { [nome]: [] }, { merge: true });
+      });
+    });
+  </script>
 </body>
 </html>
