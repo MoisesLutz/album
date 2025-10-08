@@ -143,7 +143,7 @@ async function mostrarAlbuns(){
       }
       delete albuns[nome];
       await salvarAlbuns(albuns);
-      mostrarAlbuns();
+      await mostrarAlbuns();
     };
     const nomeDiv = document.createElement('div'); nomeDiv.textContent=nome;
     div.appendChild(btnExcluir); div.appendChild(nomeDiv);
@@ -155,11 +155,16 @@ async function mostrarAlbuns(){
 document.getElementById('novoAlbum').onclick = async () => {
   const nome = prompt('Nome do novo destaque:'); 
   if (!nome) return;
+  
+  // garante que o documento exista
+  await inicializarAlbuns();
+
   const albuns = await carregarAlbuns();
   if (albuns[nome]) { alert('Já existe um destaque com esse nome.'); return; }
   albuns[nome] = [];
   await salvarAlbuns(albuns);
-  await mostrarAlbuns(); // atualiza imediatamente
+
+  await mostrarAlbuns(); // atualiza imediatamente na tela
 };
 
 async function abrirAlbum(nome){
@@ -201,28 +206,4 @@ document.getElementById('voltar').onclick=()=>{
   mostrarAlbuns();
 };
 
-document.getElementById('addFoto').onclick=()=>fileInput.click();
-
-fileInput.onchange=async e=>{
-  const files = Array.from(e.target.files);
-  if(!files.length) return;
-  const albuns = await carregarAlbuns();
-  const midias = albuns[albumAtual]||[];
-  for(const file of files){
-    const tipo = file.type.startsWith('video')?'video':'img';
-    const storageRef = ref(storage, `${albumAtual}/${Date.now()}_${file.name}`);
-    const snapshot = await uploadBytes(storageRef,file);
-    const url = await getDownloadURL(snapshot.ref);
-    midias.push({tipo,src:url});
-  }
-  albuns[albumAtual] = midias;
-  await salvarAlbuns(albuns);
-  mostrarGaleria();
-  fileInput.value='';
-}
-
-// inicializa
-mostrarAlbuns();
-</script>
-</body>
-</html>
+document.getElementById('addFoto').onclick=()=>fileInput.click
