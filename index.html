@@ -92,6 +92,15 @@ const tituloAlbum = document.getElementById('tituloAlbum');
 const fileInput = document.getElementById('fileInput');
 let albumAtual = null;
 
+// Cria documento vazio se não existir
+async function inicializarAlbuns() {
+  const docRef = doc(db,"albuns","destaques");
+  const docSnap = await getDoc(docRef);
+  if(!docSnap.exists()){
+    await setDoc(docRef, {});
+  }
+}
+
 async function carregarAlbuns() {
   const docRef = doc(db,"albuns","destaques");
   const docSnap = await getDoc(docRef);
@@ -104,31 +113,33 @@ async function salvarAlbuns(albuns) {
 }
 
 async function mostrarAlbuns(){
+  await inicializarAlbuns();
   const albuns = await carregarAlbuns();
   listaAlbuns.innerHTML='';
-  const nomes=Object.keys(albuns);
+  const nomes = Object.keys(albuns);
   if(nomes.length===0){
-    const vazio=document.createElement('div');
+    const vazio = document.createElement('div');
     vazio.textContent='Nenhum destaque — crie um!';
-    vazio.style.color='#777'; vazio.style.padding='8px';
+    vazio.style.color='#777';
+    vazio.style.padding='8px';
     listaAlbuns.appendChild(vazio);
   }
   nomes.forEach(nome=>{
     const div=document.createElement('div'); div.className='album';
-    const btnExcluir=document.createElement('button');
-    btnExcluir.className='delete-btn'; btnExcluir.textContent='×';
+    const btnExcluir=document.createElement('button'); btnExcluir.className='delete-btn'; btnExcluir.textContent='×';
     btnExcluir.onclick=async e=>{
       e.stopPropagation();
       if(!confirm(`Excluir o destaque "${nome}"?`)) return;
       const albuns = await carregarAlbuns();
-      // remover arquivos do Firebase
-      if(albuns[nome]) albuns[nome].forEach(m=>{
-        if(m.src.startsWith('https://')){
-          const path = decodeURIComponent(m.src.split('/o/')[1].split('?')[0]);
-          const fileRef = ref(storage,path);
-          deleteObject(fileRef).catch(()=>{});
-        }
-      });
+      if(albuns[nome]){
+        albuns[nome].forEach(m=>{
+          if(m.src.startsWith('https://')){
+            const path = decodeURIComponent(m.src.split('/o/')[1].split('?')[0]);
+            const fileRef = ref(storage,path);
+            deleteObject(fileRef).catch(()=>{});
+          }
+        });
+      }
       delete albuns[nome];
       await salvarAlbuns(albuns);
       mostrarAlbuns();
@@ -142,7 +153,7 @@ async function mostrarAlbuns(){
 
 document.getElementById('novoAlbum').onclick=async ()=>{
   const nome=prompt('Nome do novo destaque:'); if(!nome) return;
-  const albuns=await carregarAlbuns();
+  const albuns = await carregarAlbuns();
   if(albuns[nome]){ alert('Já existe um destaque com esse nome.'); return; }
   albuns[nome]=[];
   await salvarAlbuns(albuns);
