@@ -1,231 +1,215 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>💖 Nosso Álbum 💖</title>
-  <style>
-    body {font-family: 'Poppins', sans-serif; background-color: #fff7fa; margin: 0; text-align: center; color: #333}
-    header {background-color: #ff8fb1; color: white; padding: 15px; font-size: 1.4em; font-weight: bold}
-    .contador {margin: 12px auto; display: inline-block; background: white; padding: 12px 18px; border-radius: 10px; box-shadow: 0 0 8px rgba(0,0,0,0.06)}
-    .album-list {display:flex;flex-wrap:wrap;justify-content:center;gap:12px;padding:16px}
-    .album {background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);padding:16px;width:150px;position:relative;cursor:pointer}
-    .album:hover{transform:scale(1.03)}
-    .delete-btn{position:absolute;top:6px;right:6px;background:#ff4f88;color:#fff;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer}
-    .galeria{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;padding:16px;max-width:980px;margin:auto}
-    .galeria img,.galeria video{width:100%;border-radius:10px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
-    .empty{grid-column:1/-1;border:2px dashed #ff8fb1;color:#c66;padding:20px;border-radius:10px}
-    button{background:#ff8fb1;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600}
-    button:hover{background:#ff6f99}
-    @media(max-width:480px){header{font-size:1.2em;padding:12px}.contador{padding:10px}}
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>💖 Nosso Álbum 💖</title>
+<style>
+  body {font-family: 'Poppins', sans-serif; background-color: #fff7fa; margin: 0; text-align: center; color: #333}
+  header {background-color: #ff8fb1; color: white; padding: 15px; font-size: 1.4em; font-weight: bold}
+  .contador {margin: 12px auto; display: inline-block; background: white; padding: 12px 18px; border-radius: 10px; box-shadow: 0 0 8px rgba(0,0,0,0.06)}
+  .album-list {display:flex;flex-wrap:wrap;justify-content:center;gap:12px;padding:16px}
+  .album {background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);padding:16px;width:150px;position:relative;cursor:pointer}
+  .album:hover{transform:scale(1.03)}
+  .delete-btn{position:absolute;top:6px;right:6px;background:#ff4f88;color:#fff;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer}
+  .galeria{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;padding:16px;max-width:980px;margin:auto}
+  .galeria img,.galeria video{width:100%;border-radius:10px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+  .empty{grid-column:1/-1;border:2px dashed #ff8fb1;color:#c66;padding:20px;border-radius:10px}
+  button{background:#ff8fb1;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600}
+  button:hover{background:#ff6f99}
+  @media(max-width:480px){header{font-size:1.2em;padding:12px}.contador{padding:10px}}
+</style>
 </head>
 <body>
-  <header>💖 Nosso Álbum 💖</header>
+<header>💖 Nosso Álbum 💖</header>
 
-  <div class="contador">
-    <div>Estamos juntos há:</div>
-    <div style="font-weight:700;font-size:1.1rem" id="tempo">-- anos, -- meses e -- dias</div>
-    <div id="hms" style="color:#666;margin-top:6px">--:--:--</div>
-    <div id="totalDias" style="color:#777;margin-top:6px">(-- dias no total)</div>
+<div class="contador">
+  <div>Estamos juntos há:</div>
+  <div style="font-weight:700;font-size:1.1rem" id="tempo">-- anos, -- meses e -- dias</div>
+  <div id="hms" style="color:#666;margin-top:6px">--:--:--</div>
+  <div id="totalDias" style="color:#777;margin-top:6px">(-- dias no total)</div>
+</div>
+
+<div id="telaAlbuns">
+  <div class="album-list" id="listaAlbuns"></div>
+  <button id="novoAlbum">+ Novo Destaque</button>
+</div>
+
+<div id="telaGaleria" style="display:none">
+  <h2 id="tituloAlbum"></h2>
+  <div style="display:flex;gap:8px;justify-content:center;margin-bottom:10px">
+    <button id="voltar">⬅ Voltar</button>
+    <button id="addFoto">Adicionar foto/vídeo</button>
   </div>
+  <input type="file" id="fileInput" accept="image/*,video/*" multiple hidden />
+  <div class="galeria" id="galeria"></div>
+</div>
 
-  <div id="telaAlbuns">
-    <div class="album-list" id="listaAlbuns"></div>
-    <button id="novoAlbum">+ Novo Destaque</button>
-  </div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-storage.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
-  <div id="telaGaleria" style="display:none">
-    <h2 id="tituloAlbum"></h2>
-    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:10px">
-      <button id="voltar">⬅ Voltar</button>
-      <button id="addFoto">Adicionar foto/vídeo</button>
-    </div>
-    <input type="file" id="fileInput" accept="image/*,video/*" multiple hidden />
-    <div class="galeria" id="galeria"></div>
-  </div>
+// --- Firebase ---
+const firebaseConfig = {
+  apiKey: "AIzaSyA1NZxjAi3VENLkpbrg8CZHqSIlkhY3zv8",
+  authDomain: "nosso-album-beb75.firebaseapp.com",
+  projectId: "nosso-album-beb75",
+  storageBucket: "nosso-album-beb75.appspot.com",
+  messagingSenderId: "990056960457",
+  appId: "1:990056960457:web:b8b90705bae336708c1818"
+};
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-storage.js";
-    import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayRemove, arrayUnion } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+const app = initializeApp(firebaseConfig);
+const storage = getStorage(app);
+const db = getFirestore(app);
 
-    // --- Firebase ---
-    const firebaseConfig = {
-      apiKey: "AIzaSyA1NZxjAi3VENLkpbrg8CZHqSIlkhY3zv8",
-      authDomain: "nosso-album-beb75.firebaseapp.com",
-      projectId: "nosso-album-beb75",
-      storageBucket: "nosso-album-beb75.appspot.com",
-      messagingSenderId: "990056960457",
-      appId: "1:990056960457:web:b8b90705bae336708c1818"
-    };
+const START_DATE = new Date(2022, 9, 8);
 
-    const app = initializeApp(firebaseConfig);
-    const storage = getStorage(app);
-    const db = getFirestore(app);
+function calcularTempoJuntos() {
+  const agora = new Date();
+  let anos = agora.getFullYear() - START_DATE.getFullYear();
+  let meses = agora.getMonth() - START_DATE.getMonth();
+  let dias = agora.getDate() - START_DATE.getDate();
+  if(dias<0){ const ultimoMes=new Date(agora.getFullYear(),agora.getMonth(),0); dias+=ultimoMes.getDate(); meses--; }
+  if(meses<0){ meses+=12; anos--; }
+  const totalDias = Math.floor((agora-START_DATE)/(1000*60*60*24));
+  document.getElementById("tempo").textContent = `${anos} ${anos===1?"ano":"anos"}, ${meses} ${meses===1?"mês":"meses"} e ${dias} ${dias===1?"dia":"dias"}`;
+  const h = String(agora.getHours()).padStart(2,'0');
+  const m = String(agora.getMinutes()).padStart(2,'0');
+  const s = String(agora.getSeconds()).padStart(2,'0');
+  document.getElementById("hms").textContent = `${h}:${m}:${s}`;
+  document.getElementById("totalDias").textContent = `${totalDias} dias no total`;
+}
+setInterval(calcularTempoJuntos,1000);
 
-    const START_DATE = new Date(2022, 9, 8);
+// --- Albuns ---
+const listaAlbuns = document.getElementById('listaAlbuns');
+const telaAlbuns = document.getElementById('telaAlbuns');
+const telaGaleria = document.getElementById('telaGaleria');
+const galeria = document.getElementById('galeria');
+const tituloAlbum = document.getElementById('tituloAlbum');
+const fileInput = document.getElementById('fileInput');
+let albumAtual = null;
 
-    function calcularTempoJuntos() {
-      const agora = new Date();
-      let anos = agora.getFullYear() - START_DATE.getFullYear();
-      let meses = agora.getMonth() - START_DATE.getMonth();
-      let dias = agora.getDate() - START_DATE.getDate();
+async function carregarAlbuns() {
+  const docRef = doc(db,"albuns","destaques");
+  const docSnap = await getDoc(docRef);
+  return docSnap.exists()?docSnap.data():{};
+}
 
-      if (dias < 0) {
-        const ultimoMes = new Date(agora.getFullYear(), agora.getMonth(), 0);
-        dias += ultimoMes.getDate();
-        meses--;
-      }
-      if (meses < 0) { meses += 12; anos--; }
+async function salvarAlbuns(albuns) {
+  const docRef = doc(db,"albuns","destaques");
+  await setDoc(docRef,albuns);
+}
 
-      const totalDias = Math.floor((agora - START_DATE) / (1000*60*60*24));
-
-      document.getElementById("tempo").textContent = 
-        `${anos} ${anos===1?"ano":"anos"}, ${meses} ${meses===1?"mês":"meses"} e ${dias} ${dias===1?"dia":"dias"}`;
-      const h = String(agora.getHours()).padStart(2,'0');
-      const m = String(agora.getMinutes()).padStart(2,'0');
-      const s = String(agora.getSeconds()).padStart(2,'0');
-      document.getElementById("hms").textContent = `${h}:${m}:${s}`;
-      document.getElementById("totalDias").textContent = `${totalDias} dias no total`;
-    }
-
-    setInterval(calcularTempoJuntos, 1000);
-
-    // --- Albuns ---
-    const listaAlbuns = document.getElementById('listaAlbuns');
-    const telaAlbuns = document.getElementById('telaAlbuns');
-    const telaGaleria = document.getElementById('telaGaleria');
-    const galeria = document.getElementById('galeria');
-    const tituloAlbum = document.getElementById('tituloAlbum');
-    const fileInput = document.getElementById('fileInput');
-    let albumAtual = null;
-
-    async function carregarAlbuns() {
-      const docRef = doc(db, "albuns", "destaques");
-      const docSnap = await getDoc(docRef);
-      return docSnap.exists() ? docSnap.data() : {};
-    }
-
-    async function salvarAlbuns(albuns) {
-      const docRef = doc(db, "albuns", "destaques");
-      await setDoc(docRef, albuns);
-    }
-
-    async function mostrarAlbuns() {
+async function mostrarAlbuns(){
+  const albuns = await carregarAlbuns();
+  listaAlbuns.innerHTML='';
+  const nomes=Object.keys(albuns);
+  if(nomes.length===0){
+    const vazio=document.createElement('div');
+    vazio.textContent='Nenhum destaque — crie um!';
+    vazio.style.color='#777'; vazio.style.padding='8px';
+    listaAlbuns.appendChild(vazio);
+  }
+  nomes.forEach(nome=>{
+    const div=document.createElement('div'); div.className='album';
+    const btnExcluir=document.createElement('button');
+    btnExcluir.className='delete-btn'; btnExcluir.textContent='×';
+    btnExcluir.onclick=async e=>{
+      e.stopPropagation();
+      if(!confirm(`Excluir o destaque "${nome}"?`)) return;
       const albuns = await carregarAlbuns();
-      listaAlbuns.innerHTML = '';
-      const nomes = Object.keys(albuns);
-      if(nomes.length===0){
-        const vazio = document.createElement('div');
-        vazio.textContent = 'Nenhum destaque — crie um!';
-        vazio.style.color='#777';
-        vazio.style.padding='8px';
-        listaAlbuns.appendChild(vazio);
-      }
-      nomes.forEach(nome=>{
-        const div = document.createElement('div');
-        div.className='album';
-        const btnExcluir = document.createElement('button');
-        btnExcluir.className='delete-btn';
-        btnExcluir.textContent='×';
-        btnExcluir.onclick = async e=>{
-          e.stopPropagation();
-          if(!confirm(`Excluir o destaque "${nome}"?`)) return;
-          const albuns = await carregarAlbuns();
-          // opcional: deletar arquivos do Firebase
-          if(albuns[nome]) {
-            albuns[nome].forEach(m=>{
-              if(m.src.startsWith('https://')){
-                const fileRef = ref(storage, m.src);
-                deleteObject(fileRef).catch(()=>{});
-              }
-            });
-          }
-          delete albuns[nome];
-          await salvarAlbuns(albuns);
-          mostrarAlbuns();
-        };
-        const nomeDiv = document.createElement('div');
-        nomeDiv.textContent=nome;
-        div.appendChild(btnExcluir);
-        div.appendChild(nomeDiv);
-        div.onclick = ()=>abrirAlbum(nome);
-        listaAlbuns.appendChild(div);
+      // remover arquivos do Firebase
+      if(albuns[nome]) albuns[nome].forEach(m=>{
+        if(m.src.startsWith('https://')){
+          const path = decodeURIComponent(m.src.split('/o/')[1].split('?')[0]);
+          const fileRef = ref(storage,path);
+          deleteObject(fileRef).catch(()=>{});
+        }
       });
-    }
-
-    document.getElementById('novoAlbum').onclick = async ()=>{
-      const nome = prompt('Nome do novo destaque:');
-      if(!nome) return;
-      const albuns = await carregarAlbuns();
-      if(albuns[nome]) { alert('Já existe um destaque com esse nome.'); return; }
-      albuns[nome]=[];
+      delete albuns[nome];
       await salvarAlbuns(albuns);
       mostrarAlbuns();
     };
+    const nomeDiv=document.createElement('div'); nomeDiv.textContent=nome;
+    div.appendChild(btnExcluir); div.appendChild(nomeDiv);
+    div.onclick=()=>abrirAlbum(nome);
+    listaAlbuns.appendChild(div);
+  });
+}
 
-    async function abrirAlbum(nome){
-      albumAtual=nome;
-      tituloAlbum.textContent=nome;
-      telaAlbuns.style.display='none';
-      telaGaleria.style.display='block';
-      mostrarGaleria();
-    }
+document.getElementById('novoAlbum').onclick=async ()=>{
+  const nome=prompt('Nome do novo destaque:'); if(!nome) return;
+  const albuns=await carregarAlbuns();
+  if(albuns[nome]){ alert('Já existe um destaque com esse nome.'); return; }
+  albuns[nome]=[];
+  await salvarAlbuns(albuns);
+  mostrarAlbuns();
+};
 
-    async function mostrarGaleria(){
-      const albuns = await carregarAlbuns();
-      const midias = albuns[albumAtual]||[];
-      galeria.innerHTML='';
-      if(midias.length===0){ galeria.innerHTML='<div class="empty">Nenhuma mídia adicionada</div>'; return; }
-      midias.forEach((m,i)=>{
-        const el = document.createElement(m.tipo==='video'?'video':'img');
-        el.src = m.src;
-        if(m.tipo==='video') el.controls=true;
-        el.onclick = async ()=>{
-          if(!confirm('Remover esta mídia?')) return;
-          // remover do Firebase
-          if(m.src.startsWith('https://')){
-            const path = decodeURIComponent(m.src.split('/o/')[1].split('?')[0]);
-            const fileRef = ref(storage, path);
-            deleteObject(fileRef).catch(()=>{});
-          }
-          const albuns = await carregarAlbuns();
-          albuns[albumAtual].splice(i,1);
-          await salvarAlbuns(albuns);
-          mostrarGaleria();
-        };
-        galeria.appendChild(el);
-      });
-    }
+async function abrirAlbum(nome){
+  albumAtual=nome;
+  tituloAlbum.textContent=nome;
+  telaAlbuns.style.display='none';
+  telaGaleria.style.display='block';
+  mostrarGaleria();
+}
 
-    document.getElementById('voltar').onclick=()=>{
-      telaAlbuns.style.display='block';
-      telaGaleria.style.display='none';
-      mostrarAlbuns();
-    };
-    document.getElementById('addFoto').onclick=()=>fileInput.click();
-
-    fileInput.onchange=async e=>{
-      const files=Array.from(e.target.files);
-      if(!files.length) return;
-      const albuns=await carregarAlbuns();
-      const midias=albuns[albumAtual]||[];
-      for(const file of files){
-        const tipo = file.type.startsWith('video')?'video':'img';
-        const storageRef = ref(storage, `${albumAtual}/${Date.now()}_${file.name}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        const url = await getDownloadURL(snapshot.ref);
-        midias.push({tipo,src:url});
+async function mostrarGaleria(){
+  const albuns = await carregarAlbuns();
+  const midias = albuns[albumAtual]||[];
+  galeria.innerHTML='';
+  if(midias.length===0){ galeria.innerHTML='<div class="empty">Nenhuma mídia adicionada</div>'; return; }
+  midias.forEach((m,i)=>{
+    const el = document.createElement(m.tipo==='video'?'video':'img');
+    el.src=m.src;
+    if(m.tipo==='video') el.controls=true;
+    el.onclick=async ()=>{
+      if(!confirm('Remover esta mídia?')) return;
+      if(m.src.startsWith('https://')){
+        const path = decodeURIComponent(m.src.split('/o/')[1].split('?')[0]);
+        const fileRef = ref(storage,path);
+        deleteObject(fileRef).catch(()=>{});
       }
-      albuns[albumAtual]=midias;
+      const albuns = await carregarAlbuns();
+      albuns[albumAtual].splice(i,1);
       await salvarAlbuns(albuns);
       mostrarGaleria();
-      fileInput.value='';
     };
+    galeria.appendChild(el);
+  });
+}
 
-    // inicializa
-    mostrarAlbuns();
-  </script>
+document.getElementById('voltar').onclick=()=>{
+  telaAlbuns.style.display='block';
+  telaGaleria.style.display='none';
+  mostrarAlbuns();
+};
+
+document.getElementById('addFoto').onclick=()=>fileInput.click();
+
+fileInput.onchange=async e=>{
+  const files = Array.from(e.target.files);
+  if(!files.length) return;
+  const albuns = await carregarAlbuns();
+  const midias = albuns[albumAtual]||[];
+  for(const file of files){
+    const tipo=file.type.startsWith('video')?'video':'img';
+    const storageRef = ref(storage, `${albumAtual}/${Date.now()}_${file.name}`);
+    const snapshot = await uploadBytes(storageRef,file);
+    const url = await getDownloadURL(snapshot.ref);
+    midias.push({tipo,src:url});
+  }
+  albuns[albumAtual]=midias;
+  await salvarAlbuns(albuns);
+  mostrarGaleria();
+  fileInput.value='';
+}
+
+// inicializa
+mostrarAlbuns();
+</script>
 </body>
 </html>
