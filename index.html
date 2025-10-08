@@ -92,7 +92,6 @@ const tituloAlbum = document.getElementById('tituloAlbum');
 const fileInput = document.getElementById('fileInput');
 let albumAtual = null;
 
-// Cria documento vazio se não existir
 async function inicializarAlbuns() {
   const docRef = doc(db,"albuns","destaques");
   const docSnap = await getDoc(docRef);
@@ -117,6 +116,7 @@ async function mostrarAlbuns(){
   const albuns = await carregarAlbuns();
   listaAlbuns.innerHTML='';
   const nomes = Object.keys(albuns);
+
   if(nomes.length===0){
     const vazio = document.createElement('div');
     vazio.textContent='Nenhum destaque — crie um!';
@@ -124,12 +124,13 @@ async function mostrarAlbuns(){
     vazio.style.padding='8px';
     listaAlbuns.appendChild(vazio);
   }
+
   nomes.forEach(nome=>{
-    const div=document.createElement('div'); div.className='album';
-    const btnExcluir=document.createElement('button'); btnExcluir.className='delete-btn'; btnExcluir.textContent='×';
-    btnExcluir.onclick=async e=>{
+    const div = document.createElement('div'); div.className='album';
+    const btnExcluir = document.createElement('button'); btnExcluir.className='delete-btn'; btnExcluir.textContent='×';
+    btnExcluir.onclick = async e => {
       e.stopPropagation();
-      if(!confirm(`Excluir o destaque "${nome}"?`)) return;
+      if (!confirm(`Excluir o destaque "${nome}"?`)) return;
       const albuns = await carregarAlbuns();
       if(albuns[nome]){
         albuns[nome].forEach(m=>{
@@ -144,25 +145,26 @@ async function mostrarAlbuns(){
       await salvarAlbuns(albuns);
       mostrarAlbuns();
     };
-    const nomeDiv=document.createElement('div'); nomeDiv.textContent=nome;
+    const nomeDiv = document.createElement('div'); nomeDiv.textContent=nome;
     div.appendChild(btnExcluir); div.appendChild(nomeDiv);
-    div.onclick=()=>abrirAlbum(nome);
+    div.onclick = () => abrirAlbum(nome);
     listaAlbuns.appendChild(div);
   });
 }
 
-document.getElementById('novoAlbum').onclick=async ()=>{
-  const nome=prompt('Nome do novo destaque:'); if(!nome) return;
+document.getElementById('novoAlbum').onclick = async () => {
+  const nome = prompt('Nome do novo destaque:'); 
+  if (!nome) return;
   const albuns = await carregarAlbuns();
-  if(albuns[nome]){ alert('Já existe um destaque com esse nome.'); return; }
-  albuns[nome]=[];
+  if (albuns[nome]) { alert('Já existe um destaque com esse nome.'); return; }
+  albuns[nome] = [];
   await salvarAlbuns(albuns);
-  mostrarAlbuns();
+  await mostrarAlbuns(); // atualiza imediatamente
 };
 
 async function abrirAlbum(nome){
-  albumAtual=nome;
-  tituloAlbum.textContent=nome;
+  albumAtual = nome;
+  tituloAlbum.textContent = nome;
   telaAlbuns.style.display='none';
   telaGaleria.style.display='block';
   mostrarGaleria();
@@ -175,9 +177,9 @@ async function mostrarGaleria(){
   if(midias.length===0){ galeria.innerHTML='<div class="empty">Nenhuma mídia adicionada</div>'; return; }
   midias.forEach((m,i)=>{
     const el = document.createElement(m.tipo==='video'?'video':'img');
-    el.src=m.src;
+    el.src = m.src;
     if(m.tipo==='video') el.controls=true;
-    el.onclick=async ()=>{
+    el.onclick = async () => {
       if(!confirm('Remover esta mídia?')) return;
       if(m.src.startsWith('https://')){
         const path = decodeURIComponent(m.src.split('/o/')[1].split('?')[0]);
@@ -207,13 +209,13 @@ fileInput.onchange=async e=>{
   const albuns = await carregarAlbuns();
   const midias = albuns[albumAtual]||[];
   for(const file of files){
-    const tipo=file.type.startsWith('video')?'video':'img';
+    const tipo = file.type.startsWith('video')?'video':'img';
     const storageRef = ref(storage, `${albumAtual}/${Date.now()}_${file.name}`);
     const snapshot = await uploadBytes(storageRef,file);
     const url = await getDownloadURL(snapshot.ref);
     midias.push({tipo,src:url});
   }
-  albuns[albumAtual]=midias;
+  albuns[albumAtual] = midias;
   await salvarAlbuns(albuns);
   mostrarGaleria();
   fileInput.value='';
